@@ -10,7 +10,104 @@
 <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen relative">
 
+  <!-- Top bar with Logout -->
+  <div class="w-full bg-white shadow flex justify-between items-center px-6 py-4 fixed top-0 left-0">
+      <h1 class="text-xl font-bold">Student Dashboard</h1>
+      <button id="logoutButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+          Logout
+      </button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex items-center justify-center pt-24 px-4">
+    <div class="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+        <p id="welcomeMsg" class="text-center mb-4 text-gray-600"></p>
+        <div id="attendanceSummary" class="text-center mb-4"></div>
+        <canvas id="attendanceChart" width="300" height="200"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyA4rGlHhneYX2ILxoFBUed7zmV-uv48uyM",
+        authDomain: "attendance-system-36917.firebaseapp.com",
+        projectId: "attendance-system-36917",
+        storageBucket: "attendance-system-36917.appspot.com",
+        messagingSenderId: "129607548150",
+        appId: "1:129607548150:web:182e21e03e793dc08840d7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+        if (!user) signInAnonymously(auth);
+    });
+
+    // Logout button
+    document.getElementById('logoutButton').addEventListener('click', async () => {
+        await auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const rollNo = params.get('rollNo');
+    const name = params.get('studentName');
+    const division = params.get('division');
+
+    document.getElementById('welcomeMsg').textContent = `Welcome, ${name} (${rollNo}) - ${division}`;
+
+    async function loadAttendance() {
+        const q = query(collection(db, "attendance"), where("division", "==", division));
+        const snapshot = await getDocs(q);
+        let totalSessions = 0, presentCount = 0;
+
+        snapshot.forEach(doc => {
+            totalSessions++;
+            const data = doc.data();
+            if (data.present.some(s => s.rollNo === rollNo)) presentCount++;
+        });
+
+        const absentCount = totalSessions - presentCount;
+        document.getElementById('attendanceSummary').innerHTML = `
+            <p>Total Sessions: ${totalSessions}</p>
+            <p>Present: ${presentCount}</p>
+            <p>Absent: ${absentCount}</p>
+        `;
+
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent'],
+                datasets: [{
+                    data: [presentCount, absentCount],
+                    backgroundColor: ['#10B981', '#EF4444']
+                }]
+            }
+        });
+    }
+
+    loadAttendance();
+  </script>
+</body>
+</html>
 <div class="w-full max-w-3xl bg-white rounded-xl shadow-lg p-6">
     <h1 class="text-2xl font-bold mb-4">Attendance Dashboard</h1>
     <p id="welcome" class="text-gray-600 mb-6"></p>
