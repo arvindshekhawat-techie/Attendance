@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Attendance Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .pulsing {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        /* Custom transition for background color */
+        .status-badge {
+            transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen py-8">
+    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div class="flex flex-col items-center">
+            <!-- Header -->
+            <svg class="w-16 h-16 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.043A5.242 5.242 0 017.5 14.25a5.25 5.25 0 01-1.37-1.033m1.37 1.033c.338.338.724.624 1.14.858M8.288 15.043c.416.234.872.42 1.352.558m1.712-2.353a5.243 5.243 0 01-.14 1.343m.14-1.343a5.243 5.243 0 011.343-.14m-1.343.14c.416.234.872.42 1.352.558m0 0a5.25 5.25 0 001.37 1.033m-1.37-1.033a5.243 5.243 0 001.212-.81m-1.212.81c.338.338.724.624 1.14.858m-8.14-8.14a5.243 5.243 0 011.212.81m-1.212-.81a5.243 5.243 0 00-1.343.14m1.343-.14c-.416-.234-.872-.42-1.352-.558m0 0a5.25 5.25 0 00-1.37-1.033m1.37 1.033c-.338-.338-.724-.624-1.14-.858M12 12a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+            </svg>
+            <h1 class="text-2xl font-bold mb-2">Automated Attendance</h1>
+            <p class="text-gray-500 mb-6">Select your class and start the scan.</p>
+
+            <!-- Class Selector -->
+            <div class="w-full mb-6">
+                 <label for="class-division" class="block text-sm font-medium text-gray-700 mb-1">Class Division</label>
+                 <select id="class-division" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                     <option value="IT-A">IT-A</option>
+                     <option value="IT-B" selected>IT-B</option>
+                     <option value="CS-A">CS-A</option>
+                     <option value="CS-B">CS-B</option>
+                 </select>
+            </div>
+            
+            <!-- Scan Button -->
+            <button id="scanButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center">
+                <svg id="scan-icon" class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6 18.25m0 0c.337 0 .67.017.997.045m0 0A5.25 5.25 0 0013.5 21h.75a5.25 5.25 0 005.25-5.25v-1.5a5.25 5.25 0 00-5.25-5.25h-.75m-6.75 0a5.25 5.25 0 00-5.25 5.25v1.5A5.25 5.25 0 006.75 18h.75a5.25 5.25 0 005.25-5.25" /></svg>
+                <span id="scan-text">Start Attendance Scan</span>
+            </button>
+            
+             <!-- Status Message -->
+            <div id="status" class="mt-4 text-sm text-gray-600 h-5"></div>
+            
+            <!-- Analytics Summary -->
+            <div id="analytics-summary" class="w-full mt-4 p-3 bg-gray-50 border rounded-lg hidden">
+                <div class="flex justify-around text-center">
+                    <div>
+                        <p class="text-xs text-gray-500">PRESENT</p>
+                        <p id="present-count" class="text-xl font-bold text-green-600">0</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">ABSENT</p>
+                        <p id="absent-count" class="text-xl font-bold text-red-600">0</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">TOTAL</p>
+                        <p id="total-count" class="text-xl font-bold text-gray-700">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student List -->
+            <div class="w-full mt-4">
+                <h2 class="text-lg font-semibold mb-2 text-center">Attendance Roster</h2>
+                <div id="studentList" class="bg-gray-50 rounded-lg p-3 max-h-60 overflow-y-auto border">
+                    <p class="text-center text-gray-500">Scan to see student list.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const scanText = document.getElementById('scan-text');
+        const status = document.getElementById('status');
+        const studentList = document.getElementById('studentList');
+        const classDivisionSelector = document.getElementById('class-division');
+        const analyticsSummary = document.getElementById('analytics-summary');
+        const presentCountEl = document.getElementById('present-count');
+        const absentCountEl = document.getElementById('absent-count');
+        const totalCountEl = document.getElementById('total-count');
+
+        // --- Sample Student Data ---
+        const studentData = {
+            "IT-A": [
+                { rollNo: "A01", name: "Rahul Sharma", deviceId: "ita-001" },
+                { rollNo: "A02", name: "Priya Patel", deviceId: "ita-002" },
+                { rollNo: "A03", name: "Amit Singh", deviceId: "ita-003" },
+                { rollNo: "A04", name: "Sneha Reddy", deviceId: "ita-004" },
+                { rollNo: "A05", name: "Vikram Kumar", deviceId: "ita-005" },
+            ],
+            "IT-B": [
+                { rollNo: "B01", name: "Anjali Mehta", deviceId: "itb-001" },
+                { rollNo: "B02", name: "Deepak Gupta", deviceId: "itb-002" },
+                { rollNo: "B03", name: "Kavita Nair", deviceId: "itb-003" },
+                { rollNo: "B04", name: "Manish Joshi", deviceId: "itb-004" },
+                { rollNo: "B05", name: "Sunita Rao", deviceId: "itb-005" },
+                { rollNo: "B06", name: "Ravi Verma", deviceId: "itb-006" },
+                { rollNo: "B07", name: "Pooja Desai", deviceId: "itb-007" },
+            ],
+            "CS-A": [
+                { rollNo: "C01", name: "Sanjay Kumar", deviceId: "csa-001" },
+                { rollNo: "C02", name: "Geeta Yadav", deviceId: "csa-002" },
+                { rollNo: "C03", name: "Rajesh Mishra", deviceId: "csa-003" },
+            ],
+            "CS-B": [
+                { rollNo: "D01", name: "Neha Agarwal", deviceId: "csb-001" },
+                { rollNo: "D02", name: "Arun Khanna", deviceId: "csb-002" },
+                { rollNo: "D03", name: "Swati Iyer", deviceId: "csb-003" },
+                { rollNo: "D04", name: "Tarun Bajaj", deviceId: "csb-004" },
+            ]
+        };
+        
+        let scanInterval;
+
+        scanButton.addEventListener('click', () => {
+            if (scanButton.disabled) return;
+            
+            clearInterval(scanInterval); 
+            
+            const selectedDivision = classDivisionSelector.value;
+            const roster = studentData[selectedDivision];
+            
+            if (!roster) {
+                status.textContent = "Please select a valid division.";
+                return;
+            }
+
+            setupForScan(roster);
+            simulateScan(roster);
+        });
+
+        function setupForScan(roster) {
+            scanButton.disabled = true;
+            classDivisionSelector.disabled = true;
+            scanButton.classList.add('opacity-50', 'pulsing');
+            scanText.textContent = 'Scanning...';
+            status.textContent = 'Searching for student devices...';
+            analyticsSummary.classList.remove('hidden');
+
+            studentList.innerHTML = '';
+            roster.forEach(student => {
+                const studentEl = document.createElement('div');
+                studentEl.id = `student-${student.deviceId}`;
+                studentEl.className = 'flex items-center justify-between p-2 border-b last:border-b-0';
+                studentEl.innerHTML = `
+                    <div>
+                        <span class="font-bold text-gray-700">${student.rollNo}</span>
+                        <span class="ml-2 text-gray-600">${student.name}</span>
+                    </div>
+                    <span class="status-badge text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800">ABSENT</span>
+                `;
+                studentList.appendChild(studentEl);
+            });
+            updateAnalytics(0, roster.length, roster.length);
+        }
+
+        function simulateScan(roster) {
+            const presentStudents = [...roster].sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * (roster.length + 1)));
+            let detectedCount = 0;
+
+            scanInterval = setInterval(() => {
+                if (detectedCount < presentStudents.length) {
+                    const studentToMark = presentStudents[detectedCount];
+                    markStudentPresent(studentToMark.deviceId);
+                    detectedCount++;
+                    updateAnalytics(detectedCount, roster.length - detectedCount, roster.length);
+                } else {
+                    clearInterval(scanInterval);
+                    scanComplete();
+                }
+            }, 400); 
+        }
+        
+        function markStudentPresent(deviceId) {
+            const studentEl = document.getElementById(`student-${deviceId}`);
+            if (studentEl) {
+                const statusBadge = studentEl.querySelector('.status-badge');
+                statusBadge.textContent = 'PRESENT';
+                statusBadge.classList.remove('bg-red-100', 'text-red-800');
+                statusBadge.classList.add('bg-green-100', 'text-green-800');
+            }
+        }
+        
+        function updateAnalytics(present, absent, total) {
+            presentCountEl.textContent = present;
+            absentCountEl.textContent = absent;
+            totalCountEl.textContent = total;
+        }
+
+        function scanComplete() {
+            scanButton.disabled = false;
+            classDivisionSelector.disabled = false;
+            scanButton.classList.remove('opacity-50', 'pulsing');
+            scanText.textContent = 'Start New Scan';
+            status.textContent = 'Scan complete.';
+        }
+    </script>
+</body>
+</html>
