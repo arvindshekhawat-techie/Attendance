@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login to Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-sm mx-auto bg-white rounded-xl shadow-lg p-8 transform transition-all duration-300 hover:shadow-2xl">
+        <div class="flex flex-col items-center">
+            <!-- Header -->
+            <svg class="w-16 h-16 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5h.008v.008h-.008V10.5zm-5.25 0h.008v.008h-.008V10.5zm-5.25 0h.008v.008h-.008V10.5z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6.75 6.75 0 006.75-6.75V7.5a6.75 6.75 0 00-6.75-6.75S4.5 7.5 4.5 7.5v4.5a6.75 6.75 0 006.75 6.75z" />
+            </svg>
+            <h1 class="text-2xl font-bold text-center mb-2">Login to Dashboard</h1>
+            <p class="text-gray-500 text-center mb-6">Select your role to continue.</p>
+            
+            <!-- Role Selector -->
+            <div class="w-full mb-4">
+                <label for="role-select" class="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
+                <select id="role-select" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                </select>
+            </div>
+            
+            <!-- Dynamic Login Form -->
+            <div id="login-form-container" class="w-full space-y-4">
+                <!-- Form fields will be injected by JavaScript -->
+            </div>
+
+            <!-- Login Button -->
+            <button id="loginButton" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                Login
+            </button>
+            
+            <!-- Status Message -->
+            <div id="status" class="mt-4 text-sm text-center text-gray-600 h-6"></div>
+            
+        </div>
+    </div>
+
+    <script type="module">
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set log level to debug for better console output
+        setLogLevel('debug');
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let userId = null;
+        let isAuthReady = false;
+
+        // --- DOM Elements ---
+        const roleSelect = document.getElementById('role-select');
+        const loginFormContainer = document.getElementById('login-form-container');
+        const loginButton = document.getElementById('loginButton');
+        const statusEl = document.getElementById('status');
+
+        // --- Authentication ---
+        onAuthStateChanged(auth, async user => {
+            if (user) {
+                console.log("Authentication successful. User UID:", user.uid);
+                userId = user.uid;
+                isAuthReady = true;
+                loginButton.disabled = false;
+                statusEl.textContent = "Ready to log in.";
+            } else {
+                console.log("User is not signed in. Attempting anonymous sign-in...");
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    statusEl.textContent = "Error: Could not connect to authentication service.";
+                    isAuthReady = false;
+                }
+            }
+        });
+
+        // --- UI Functions ---
+        function renderForm(role) {
+            loginFormContainer.innerHTML = '';
+            if (role === 'teacher') {
+                loginFormContainer.innerHTML = `
+                    <div>
+                        <label for="teacherPassword" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="teacherPassword" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                `;
+            } else { // Student
+                loginFormContainer.innerHTML = `
+                    <div>
+                        <label for="rollNo" class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                        <input type="text" id="rollNo" placeholder="e.g., B01" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="studentName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="studentName" placeholder="e.g., Anjali Mehta" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                `;
+            }
+        }
+        
+        // --- Event Listeners ---
+        roleSelect.addEventListener('change', (event) => {
+            renderForm(event.target.value);
+            statusEl.textContent = '';
+        });
+
+        loginButton.addEventListener('click', async () => {
+            if (!isAuthReady) {
+                statusEl.textContent = "Authentication service is not ready. Please wait a moment.";
+                return;
+            }
+
+            const role = roleSelect.value;
+            statusEl.textContent = 'Logging in...';
+            loginButton.disabled = true;
+
+            try {
+                if (role === 'teacher') {
+                    const password = document.getElementById('teacherPassword').value;
+                    if (password === 'teacher123') { // Simple password check
+                        window.location.href = 'index.html'; // Redirect to teacher's dashboard
+                    } else {
+                        statusEl.textContent = 'Invalid password.';
+                        loginButton.disabled = false;
+                    }
+                } else { // Student
+                    const rollNo = document.getElementById('rollNo').value.trim();
+                    const studentName = document.getElementById('studentName').value.trim();
+                    if (rollNo && studentName) {
+                        // Pass student details via query parameters
+                        window.location.href = `student-analytics.html?rollNo=${encodeURIComponent(rollNo)}&studentName=${encodeURIComponent(studentName)}`;
+                    } else {
+                        statusEl.textContent = 'Please enter both Roll Number and Full Name.';
+                        loginButton.disabled = false;
+                    }
+                }
+            } catch (error) {
+                console.error("Login failed:", error);
+                statusEl.textContent = "An error occurred during login. Please try again.";
+                loginButton.disabled = false;
+            }
+        });
+
+        // Initial render
+        renderForm(roleSelect.value);
+    </script>
+</body>
+</html>
