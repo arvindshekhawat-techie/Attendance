@@ -5,287 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login to Attendance System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .view { display: none; }
-        .active-view { display: block; }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen p-4">
-
-    <div id="app-container" class="w-full max-w-2xl mx-auto">
-
-        <!-- Landing View -->
-        <div id="landing-view" class="active-view view bg-white p-8 rounded-xl shadow-lg text-center">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to the Attendance System</h1>
-            <p class="text-gray-600 mb-8">Please select your role to continue.</p>
-            <div class="flex flex-col md:flex-row gap-4 justify-center">
-                <button onclick="switchView('teacher-login-view')" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition">I am a Teacher</button>
-                <button onclick="switchView('student-login-view')" class="bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition">I am a Student</button>
-            </div>
-        </div>
-
-        <!-- Teacher Login View -->
-        <div id="teacher-login-view" class="view bg-white p-8 rounded-xl shadow-lg">
-             <button onclick="switchView('landing-view')" class="text-sm text-gray-500 mb-4">&larr; Back</button>
-             <h2 class="text-2xl font-bold text-center mb-4">Teacher Login</h2>
-             <input type="password" id="teacher-password" placeholder="Enter password" class="w-full px-4 py-2 border rounded-md mb-4">
-             <button onclick="loginTeacher()" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Login</button>
-        </div>
-
-        <!-- Teacher Dashboard View -->
-        <div id="teacher-dashboard-view" class="view bg-white p-8 rounded-xl shadow-lg">
-             <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold mb-4">Teacher Dashboard</h2>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
-            </div>
-            <!-- Scan Setup -->
-            <div id="scan-setup">
-                <div class="flex gap-4">
-                    <select id="class-select" class="w-full px-4 py-2 border rounded-md"><option value="IT-A">IT-A</option><option value="IT-B">IT-B</option><option value="CS-A">CS-A</option><option value="CS-B">CS-B</option></select>
-                    <button id="startScanButton" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg whitespace-nowrap">Start Scan</button>
-                </div>
-            </div>
-            <!-- Active Scan -->
-            <div id="active-scan-view" class="hidden text-center bg-gray-50 p-6 rounded-lg mt-4">
-                 <p id="scan-status" class="text-gray-600 mb-4">Scan started. Ready to find students.</p>
-                 <button id="findStudentButton" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg">Find Next Student</button>
-                 <button id="finishScanButton" class="ml-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">Finish & Save</button>
-            </div>
-            <!-- Roster -->
-            <div id="studentList" class="mt-4 max-h-80 overflow-y-auto"></div>
-        </div>
-
-        <!-- Student Login View -->
-        <div id="student-login-view" class="view bg-white p-8 rounded-xl shadow-lg">
-            <button onclick="switchView('landing-view')" class="text-sm text-gray-500 mb-4">&larr; Back</button>
-            <h2 class="text-2xl font-bold text-center mb-4">Student Login</h2>
-            <input type="text" id="student-id-input" placeholder="Enter Your Student ID (e.g., ITA01)" class="w-full px-4 py-2 border rounded-md mb-4 uppercase">
-            <button onclick="loginStudent()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Login</button>
-        </div>
-        
-        <!-- Student Dashboard View -->
-        <div id="student-dashboard-view" class="view bg-white p-8 rounded-xl shadow-lg">
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold mb-4" id="student-welcome">Student Dashboard</h2>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
-            </div>
-            <!-- Analytics -->
-            <div>
-                <h3 class="text-lg font-semibold mb-2">Your Attendance History</h3>
-                <canvas id="attendanceChart" height="150"></canvas>
-            </div>
-        </div>
-
-        <!-- Seeding Button -->
-        <div id="seed-container" class="text-center mt-4">
-            <button id="seedButton" class="text-xs text-gray-500 hover:text-blue-500">Initialize/Seed Database</button>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, query, where, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyA4rGlHhneYX2ILxoFBUed7zmV-uv48uyM",
-            authDomain: "attendance-system-36917.firebaseapp.com",
-            projectId: "attendance-system-36917",
-            storageBucket: "attendance-system-36917.firebasestorage.app",
-            messagingSenderId: "129607548150",
-            appId: "1:129607548150:web:182e21e03e793dc08840d7"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        const ATTENDANCE_SERVICE_UUID = "0000180a-0000-1000-8000-00805f9b34fb"; // Must match student beacon app
-        
-        let currentRoster = [], presentStudents = new Set(), currentStudent = null, attendanceChart = null;
-
-        // --- CORE APP LOGIC ---
-        window.switchView = (viewId) => {
-            document.querySelectorAll('.view').forEach(v => v.classList.replace('active-view', 'view'));
-            document.getElementById(viewId).classList.replace('view', 'active-view');
-        };
-
-        window.logout = () => {
-            currentStudent = null;
-            if (attendanceChart) attendanceChart.destroy();
-            document.getElementById('teacher-password').value = '';
-            document.getElementById('student-id-input').value = '';
-            // Reset teacher UI
-            document.getElementById('scan-setup').style.display = 'block';
-            document.getElementById('active-scan-view').style.display = 'none';
-            document.getElementById('studentList').innerHTML = '';
-            switchView('landing-view');
-        };
-
-        // --- TEACHER LOGIC ---
-        window.loginTeacher = async () => {
-            const pass = document.getElementById('teacher-password').value;
-            const teacherConfig = await getDoc(doc(db, "config", "teacher"));
-            if (teacherConfig.exists() && pass === teacherConfig.data().password) {
-                switchView('teacher-dashboard-view');
-            } else {
-                alert('Incorrect password.');
-            }
-        };
-        
-        document.getElementById('startScanButton').addEventListener('click', async () => {
-            const selectedClass = document.getElementById('class-select').value;
-            const rosterDoc = await getDoc(doc(db, "rosters", selectedClass));
-            if (!rosterDoc.exists()) return alert('Roster not found!');
-            
-            currentRoster = rosterDoc.data().students;
-            presentStudents.clear();
-            
-            document.getElementById('scan-setup').style.display = 'none';
-            document.getElementById('active-scan-view').style.display = 'block';
-            renderRoster();
-        });
-
-        document.getElementById('findStudentButton').addEventListener('click', async () => {
-            const scanStatus = document.getElementById('scan-status');
-            try {
-                scanStatus.textContent = "Searching for student beacons...";
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [ATTENDANCE_SERVICE_UUID] }],
-                    acceptAllDevices: false,
-                });
-
-                const studentRollNo = device.name;
-                if (currentRoster.some(s => s.rollNo === studentRollNo)) {
-                    presentStudents.add(studentRollNo);
-                    renderRoster();
-                    scanStatus.textContent = `Marked ${studentRollNo} as present.`;
-                } else {
-                    scanStatus.textContent = `Device "${studentRollNo}" not found in this roster.`;
-                }
-            } catch (error) {
-                console.error("BLE Error:", error);
-                scanStatus.textContent = "Scan cancelled or failed.";
-            }
-        });
-
-        document.getElementById('finishScanButton').addEventListener('click', async () => {
-            if (currentRoster.length === 0) return alert('No scan was started.');
-
-            const absentStudents = currentRoster.filter(s => !presentStudents.has(s.rollNo));
-            const presentStudentDetails = currentRoster.filter(s => presentStudents.has(s.rollNo));
-
-            const record = {
-                division: document.getElementById('class-select').value,
-                createdAt: serverTimestamp(),
-                total: currentRoster.length,
-                presentCount: presentStudents.size,
-                absentCount: absentStudents.length,
-                present: presentStudentDetails,
-                absent: absentStudents
-            };
-
-            await addDoc(collection(db, "attendance"), record);
-            alert('Attendance saved successfully!');
-            logout(); // Go back to home screen after saving
-        });
-
-        function renderRoster() {
-            const list = document.getElementById('studentList');
-            list.innerHTML = `<h3 class="font-bold mb-2">Roster (${presentStudents.size}/${currentRoster.length} Present)</h3>`;
-            currentRoster.forEach(student => {
-                const isPresent = presentStudents.has(student.rollNo);
-                const el = document.createElement('div');
-                el.className = `p-2 flex justify-between ${isPresent ? 'bg-green-100' : 'bg-gray-100'}`;
-                el.innerHTML = `<span>${student.name} (${student.rollNo})</span><span>${isPresent ? 'PRESENT' : 'ABSENT'}</span>`;
-                list.appendChild(el);
-            });
-        }
-
-        // --- STUDENT LOGIC ---
-        window.loginStudent = async () => {
-            const studentId = document.getElementById('student-id-input').value.trim().toUpperCase();
-            if (!studentId) return alert('Please enter your Student ID.');
-
-            const rostersSnapshot = await getDocs(collection(db, "rosters"));
-            let foundStudent = null;
-            rostersSnapshot.forEach(doc => {
-                const student = doc.data().students.find(s => s.id === studentId);
-                if (student) foundStudent = {...student, division: doc.id };
-            });
-
-            if (foundStudent) {
-                currentStudent = foundStudent;
-                document.getElementById('student-welcome').textContent = `Welcome, ${currentStudent.name}`;
-                switchView('student-dashboard-view');
-                loadAttendanceChart();
-            } else {
-                alert('Student ID not found.');
-            }
-        };
-        
-        async function loadAttendanceChart() {
-            const q = query(collection(db, "attendance"), where("division", "==", currentStudent.division));
-            const snapshot = await getDocs(q);
-            let present = 0, total = 0;
-            snapshot.forEach(doc => {
-                total++;
-                if (doc.data().present.some(s => s.rollNo === currentStudent.rollNo)) present++;
-            });
-
-            if (attendanceChart) attendanceChart.destroy();
-            attendanceChart = new Chart(document.getElementById('attendanceChart').getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Present', 'Absent'],
-                    datasets: [{ data: [present, total - present], backgroundColor: ['#10B981', '#EF4444'] }]
-                }
-            });
-        }
-
-        // --- SEEDING ---
-        document.getElementById('seedButton').addEventListener('click', async () => {
-            const sampleData = {
-                rosters: {
-                    "IT-A": [ { id: "ITA01", rollNo: "A01", name: "Rahul Sharma" }, { id: "ITA02", rollNo: "A02", name: "Priya Patel" } ],
-                    "IT-B": [ { id: "ITB01", rollNo: "B01", name: "Anjali Mehta" }, { id: "ITB02", rollNo: "B02", name: "Deepak Gupta" } ],
-                    "CS-A": [ { id: "CSA01", rollNo: "C01", name: "Sanjay Kumar" } ],
-                    "CS-B": [ { id: "CSB01", rollNo: "D01", name: "Neha Agarwal" } ]
-                },
-                teacher: {
-                    password: "teacher123"
-                }
-            };
-            
-            try {
-                for (const div in sampleData.rosters) {
-                    await setDoc(doc(db, "rosters", div), { students: sampleData.rosters[div] });
-                }
-                await setDoc(doc(db, "config", "teacher"), sampleData.teacher);
-                alert('Database seeded!');
-                document.getElementById('seed-container').style.display = 'none';
-            } catch (error) {
-                alert("Error seeding database.");
-            }
-        });
-
-        onAuthStateChanged(auth, user => {
-            if (!user) signInAnonymously(auth);
-        });
-    </script>
-</body>
-</html>
-?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -325,19 +45,23 @@
             
             <!-- Status Message -->
             <div id="status" class="mt-4 text-sm text-center text-gray-600 h-6"></div>
+            
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Added signInWithEmailAndPassword to imports
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        setLogLevel('debug');
 
         const firebaseConfig = {
             apiKey: "AIzaSyA4rGlHhneYX2ILxoFBUed7zmV-uv48uyM",
             authDomain: "attendance-system-36917.firebaseapp.com",
             projectId: "attendance-system-36917",
-            storageBucket: "attendance-system-36917.firebasestorage.app",
+            storageBucket: "attendance-system-36917.appspot.com",
             messagingSenderId: "129607548150",
             appId: "1:129607548150:web:182e21e03e793dc08840d7"
         };
@@ -346,21 +70,44 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        let isAuthReady = false;
+
         const roleSelect = document.getElementById('role-select');
         const loginFormContainer = document.getElementById('login-form-container');
         const loginButton = document.getElementById('loginButton');
         const statusEl = document.getElementById('status');
+
+        onAuthStateChanged(auth, async user => {
+            if (user) {
+                isAuthReady = true;
+                loginButton.disabled = false;
+                statusEl.textContent = "Ready to log in.";
+            } else {
+                try {
+                    // Only sign in anonymously if no user is present at all (fresh session or logged out)
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    statusEl.textContent = "Error: Could not connect to authentication service.";
+                    console.error(error);
+                }
+            }
+        });
 
         function renderForm(role) {
             loginFormContainer.innerHTML = '';
             if (role === 'teacher') {
                 loginFormContainer.innerHTML = `
                     <div>
+                        <label for="teacherEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="teacherEmail" placeholder="teacher@example.com" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
                         <label for="teacherPassword" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input type="password" id="teacherPassword" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 `;
             } else {
+                // Student form remains the same
                 loginFormContainer.innerHTML = `
                     <div>
                         <label for="rollNo" class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
@@ -370,68 +117,92 @@
                         <label for="studentName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                         <input type="text" id="studentName" placeholder="e.g., Anjali Mehta" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                     </div>
+                    <div>
+                        <label for="studentDivision" class="block text-sm font-medium text-gray-700 mb-1">Division</label>
+                        <select id="studentDivision" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <option value="IT-A">IT-A</option>
+                            <option value="IT-B" selected>IT-B</option>
+                            <option value="CS-A">CS-A</option>
+                            <option value="CS-B">CS-B</option>
+                        </select>
+                    </div>
                 `;
             }
         }
 
-        roleSelect.addEventListener('change', () => {
-            renderForm(roleSelect.value);
+        roleSelect.addEventListener('change', (event) => {
+            renderForm(event.target.value);
             statusEl.textContent = '';
         });
 
-        renderForm(roleSelect.value);
-
-        onAuthStateChanged(auth, user => {
-            if (!user) signInAnonymously(auth).catch(console.error);
-        });
-
         loginButton.addEventListener('click', async () => {
+            if (!isAuthReady) {
+                statusEl.textContent = "Auth service not ready.";
+                return;
+            }
+
             const role = roleSelect.value;
             statusEl.textContent = 'Logging in...';
             loginButton.disabled = true;
 
             if (role === 'teacher') {
+                const email = document.getElementById('teacherEmail').value.trim();
                 const password = document.getElementById('teacherPassword').value;
-                if (password === 'teacher123') {
-                    window.location.href = 'teacher-dashboard.html';
-                } else {
-                    statusEl.textContent = 'Invalid password.';
-                    loginButton.disabled = false;
-                }
-            } else {
-                const rollNo = document.getElementById('rollNo').value.trim();
-                const studentName = document.getElementById('studentName').value.trim();
 
-                if (!rollNo || !studentName) {
-                    statusEl.textContent = 'Please enter both Roll Number and Full Name.';
+                if (!email || !password) {
+                    statusEl.textContent = 'Please enter both email and password.';
                     loginButton.disabled = false;
                     return;
                 }
 
                 try {
-                    const rosterSnapshot = await getDocs(collection(db, "rosters"));
-                    let validStudent = null;
-
-                    rosterSnapshot.forEach(doc => {
-                        const students = doc.data().students || [];
-                        const found = students.find(s => s.rollNo === rollNo && s.name.toLowerCase() === studentName.toLowerCase());
-                        if (found) validStudent = { ...found, division: doc.id };
-                    });
-
-                    if (validStudent) {
-                        window.location.href = `student-dashboard.html?rollNo=${encodeURIComponent(validStudent.rollNo)}&name=${encodeURIComponent(validStudent.name)}&division=${encodeURIComponent(validStudent.division)}`;
+                    await signInWithEmailAndPassword(auth, email, password);
+                    // Redirect to the teacherUI.html after successful login
+                    window.location.href = 'teacherUI.html'; 
+                } catch (error) {
+                    console.error("Teacher login error:", error);
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                        statusEl.textContent = 'Invalid email or password.';
+                    } else if (error.code === 'auth/invalid-email') {
+                        statusEl.textContent = 'Invalid email format.';
                     } else {
-                        statusEl.textContent = 'Student not found in database.';
+                        statusEl.textContent = `Login failed: ${error.message}`;
+                    }
+                    loginButton.disabled = false;
+                }
+            } else {
+                // Student login logic (remains the same)
+                const rollNo = document.getElementById('rollNo').value.trim();
+                const studentName = document.getElementById('studentName').value.trim();
+                const division = document.getElementById('studentDivision').value;
+
+                if (!rollNo || !studentName) {
+                    statusEl.textContent = 'Enter Roll No and Name.';
+                    loginButton.disabled = false;
+                    return;
+                }
+
+                // Verify student exists in Firestore
+                try {
+                    const rosterRef = doc(db, "rosters", division);
+                    const rosterDoc = await getDoc(rosterRef);
+                    const roster = rosterDoc.exists() ? rosterDoc.data().students : [];
+                    const found = roster.find(s => s.rollNo === rollNo && s.name.toLowerCase() === studentName.toLowerCase());
+                    if (found) {
+                        window.location.href = `student-dashboard.html?rollNo=${encodeURIComponent(rollNo)}&studentName=${encodeURIComponent(studentName)}&division=${division}`;
+                    } else {
+                        statusEl.textContent = 'Student not found in this division.';
                         loginButton.disabled = false;
                     }
-
                 } catch (error) {
                     console.error(error);
-                    statusEl.textContent = 'Error checking student data.';
+                    statusEl.textContent = 'Error verifying student.';
                     loginButton.disabled = false;
                 }
             }
         });
+
+        renderForm(roleSelect.value);
     </script>
 </body>
 </html>
