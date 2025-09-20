@@ -36,9 +36,7 @@
             </div>
             
             <!-- Dynamic Login Form -->
-            <div id="login-form-container" class="w-full space-y-4">
-                <!-- Form fields will be injected by JavaScript -->
-            </div>
+            <div id="login-form-container" class="w-full space-y-4"></div>
 
             <!-- Login Button -->
             <button id="loginButton" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
@@ -47,63 +45,32 @@
             
             <!-- Status Message -->
             <div id="status" class="mt-4 text-sm text-center text-gray-600 h-6"></div>
-            
         </div>
     </div>
 
     <script type="module">
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Set log level to debug for better console output
-        setLogLevel('debug');
+        const firebaseConfig = {
+            apiKey: "AIzaSyA4rGlHhneYX2ILxoFBUed7zmV-uv48uyM",
+            authDomain: "attendance-system-36917.firebaseapp.com",
+            projectId: "attendance-system-36917",
+            storageBucket: "attendance-system-36917.firebasestorage.app",
+            messagingSenderId: "129607548150",
+            appId: "1:129607548150:web:182e21e03e793dc08840d7"
+        };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        
-        let userId = null;
-        let isAuthReady = false;
 
-        // --- DOM Elements ---
         const roleSelect = document.getElementById('role-select');
         const loginFormContainer = document.getElementById('login-form-container');
         const loginButton = document.getElementById('loginButton');
         const statusEl = document.getElementById('status');
 
-        // --- Authentication ---
-        onAuthStateChanged(auth, async user => {
-            if (user) {
-                console.log("Authentication successful. User UID:", user.uid);
-                userId = user.uid;
-                isAuthReady = true;
-                loginButton.disabled = false;
-                statusEl.textContent = "Ready to log in.";
-            } else {
-                console.log("User is not signed in. Attempting anonymous sign-in...");
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Authentication failed:", error);
-                    statusEl.textContent = "Error: Could not connect to authentication service.";
-                    isAuthReady = false;
-                }
-            }
-        });
-
-        // --- UI Functions ---
         function renderForm(role) {
             loginFormContainer.innerHTML = '';
             if (role === 'teacher') {
@@ -113,7 +80,7 @@
                         <input type="password" id="teacherPassword" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 `;
-            } else { // Student
+            } else {
                 loginFormContainer.innerHTML = `
                     <div>
                         <label for="rollNo" class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
@@ -126,52 +93,65 @@
                 `;
             }
         }
-        
-        // --- Event Listeners ---
-        roleSelect.addEventListener('change', (event) => {
-            renderForm(event.target.value);
+
+        roleSelect.addEventListener('change', () => {
+            renderForm(roleSelect.value);
             statusEl.textContent = '';
         });
 
-        loginButton.addEventListener('click', async () => {
-            if (!isAuthReady) {
-                statusEl.textContent = "Authentication service is not ready. Please wait a moment.";
-                return;
-            }
+        renderForm(roleSelect.value);
 
+        onAuthStateChanged(auth, user => {
+            if (!user) signInAnonymously(auth).catch(console.error);
+        });
+
+        loginButton.addEventListener('click', async () => {
             const role = roleSelect.value;
             statusEl.textContent = 'Logging in...';
             loginButton.disabled = true;
 
-            try {
-                if (role === 'teacher') {
-                    const password = document.getElementById('teacherPassword').value;
-                    if (password === 'teacher123') { // Simple password check
-                        window.location.href = 'index.html'; // Redirect to teacher's dashboard
-                    } else {
-                        statusEl.textContent = 'Invalid password.';
-                        loginButton.disabled = false;
-                    }
-                } else { // Student
-                    const rollNo = document.getElementById('rollNo').value.trim();
-                    const studentName = document.getElementById('studentName').value.trim();
-                    if (rollNo && studentName) {
-                        // Pass student details via query parameters
-                        window.location.href = `student-analytics.html?rollNo=${encodeURIComponent(rollNo)}&studentName=${encodeURIComponent(studentName)}`;
-                    } else {
-                        statusEl.textContent = 'Please enter both Roll Number and Full Name.';
-                        loginButton.disabled = false;
-                    }
+            if (role === 'teacher') {
+                const password = document.getElementById('teacherPassword').value;
+                if (password === 'teacher123') {
+                    window.location.href = 'teacher-dashboard.html';
+                } else {
+                    statusEl.textContent = 'Invalid password.';
+                    loginButton.disabled = false;
                 }
-            } catch (error) {
-                console.error("Login failed:", error);
-                statusEl.textContent = "An error occurred during login. Please try again.";
-                loginButton.disabled = false;
+            } else {
+                const rollNo = document.getElementById('rollNo').value.trim();
+                const studentName = document.getElementById('studentName').value.trim();
+
+                if (!rollNo || !studentName) {
+                    statusEl.textContent = 'Please enter both Roll Number and Full Name.';
+                    loginButton.disabled = false;
+                    return;
+                }
+
+                try {
+                    const rosterSnapshot = await getDocs(collection(db, "rosters"));
+                    let validStudent = null;
+
+                    rosterSnapshot.forEach(doc => {
+                        const students = doc.data().students || [];
+                        const found = students.find(s => s.rollNo === rollNo && s.name.toLowerCase() === studentName.toLowerCase());
+                        if (found) validStudent = { ...found, division: doc.id };
+                    });
+
+                    if (validStudent) {
+                        window.location.href = `student-dashboard.html?rollNo=${encodeURIComponent(validStudent.rollNo)}&name=${encodeURIComponent(validStudent.name)}&division=${encodeURIComponent(validStudent.division)}`;
+                    } else {
+                        statusEl.textContent = 'Student not found in database.';
+                        loginButton.disabled = false;
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    statusEl.textContent = 'Error checking student data.';
+                    loginButton.disabled = false;
+                }
             }
         });
-
-        // Initial render
-        renderForm(roleSelect.value);
     </script>
 </body>
 </html>
