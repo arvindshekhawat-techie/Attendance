@@ -57,7 +57,7 @@
             </button>
             
              <!-- Status Message -->
-            <div id="status" class="mt-4 text-sm text-gray-600 h-5"></div>
+            <div id="status" class="mt-4 text-sm text-center text-gray-600 h-10"></div>
             
             <!-- Analytics Summary -->
             <div id="analytics-summary" class="w-full mt-4 p-3 bg-gray-50 border rounded-lg hidden">
@@ -125,13 +125,16 @@
         // --- Authentication ---
         onAuthStateChanged(auth, user => {
             if (user) {
-                console.log("User is signed in anonymously:", user.uid);
+                console.log("Authentication successful. User UID:", user.uid);
                 scanButton.disabled = false;
                 scanText.textContent = "Start Attendance Scan";
                 studentList.innerHTML = `<p class="text-center text-gray-500">Select a class to begin.</p>`;
             } else {
-                console.log("User is signed out.");
-                signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+                console.log("User is not signed in. Attempting anonymous sign-in...");
+                signInAnonymously(auth).catch(error => {
+                    console.error("Anonymous sign-in failed:", error);
+                    status.textContent = "Error: Could not connect to authentication service.";
+                });
             }
         });
 
@@ -141,25 +144,35 @@
             
             clearInterval(scanInterval);
             saveButton.classList.add('hidden');
+            analyticsSummary.classList.add('hidden');
             presentDeviceIds.clear();
 
             const selectedDivision = classDivisionSelector.value;
             status.textContent = `Fetching roster for ${selectedDivision}...`;
+            console.log(`Attempting to fetch doc: rosters/${selectedDivision}`);
 
             try {
-                const rosterDoc = await getDoc(doc(db, "rosters", selectedDivision));
-                if (!rosterDoc.exists() || !rosterDoc.data().students) {
-                    status.textContent = `No roster for ${selectedDivision}. Please seed database.`;
-                    studentList.innerHTML = `<p class="text-center text-red-500">Roster not found.</p>`;
+                const rosterRef = doc(db, "rosters", selectedDivision);
+                const rosterDoc = await getDoc(rosterRef);
+                
+                console.log(`Firestore document exists: ${rosterDoc.exists()}`);
+
+                if (!rosterDoc.exists() || !rosterDoc.data().students || rosterDoc.data().students.length === 0) {
+                    status.innerHTML = `No roster found for ${selectedDivision}.<br>Please click "Initialize/Seed Database" first.`;
+                    studentList.innerHTML = `<p class="text-center text-red-500 font-semibold">Roster not found in the database.</p>`;
+                    console.warn(`Document rosters/${selectedDivision} does not exist or is empty.`);
                     return;
                 }
+
                 currentRoster = rosterDoc.data().students;
+                console.log("Roster fetched successfully:", currentRoster);
                 setupForScan(currentRoster);
                 simulateScan(currentRoster);
 
             } catch (error) {
-                console.error("Error fetching roster: ", error);
-                status.textContent = "Error fetching roster.";
+                console.error("Error fetching roster from Firestore:", error);
+                status.innerHTML = `Error fetching roster. Check console for details.<br>(Is your project set up correctly?)`;
+                studentList.innerHTML = `<p class="text-center text-red-500 font-semibold">Could not connect to the database.</p>`;
             }
         });
         
@@ -196,24 +209,10 @@
 
         seedButton.addEventListener('click', async () => {
             const sampleData = {
-                "IT-A": [
-                    { rollNo: "A01", name: "Rahul Sharma", deviceId: "ita-001" },
-                    { rollNo: "A02", name: "Priya Patel", deviceId: "ita-002" },
-                    { rollNo: "A03", name: "Amit Singh", deviceId: "ita-003" },
-                ],
-                "IT-B": [
-                    { rollNo: "B01", name: "Anjali Mehta", deviceId: "itb-001" },
-                    { rollNo: "B02", name: "Deepak Gupta", deviceId: "itb-002" },
-                    { rollNo: "B03", name: "Kavita Nair", deviceId: "itb-003" },
-                ],
-                "CS-A": [
-                    { rollNo: "C01", name: "Sanjay Kumar", deviceId: "csa-001" },
-                    { rollNo: "C02", name: "Geeta Yadav", deviceId: "csa-002" },
-                ],
-                "CS-B": [
-                    { rollNo: "D01", name: "Neha Agarwal", deviceId: "csb-001" },
-                    { rollNo: "D02", name: "Arun Khanna", deviceId: "csb-002" },
-                ]
+                "IT-A": [ { rollNo: "A01", name: "Rahul Sharma", deviceId: "ita-001" }, { rollNo: "A02", name: "Priya Patel", deviceId: "ita-002" }, { rollNo: "A03", name: "Amit Singh", deviceId: "ita-003" }, ],
+                "IT-B": [ { rollNo: "B01", name: "Anjali Mehta", deviceId: "itb-001" }, { rollNo: "B02", name: "Deepak Gupta", deviceId: "itb-002" }, { rollNo: "B03", name: "Kavita Nair", deviceId: "itb-003" }, ],
+                "CS-A": [ { rollNo: "C01", name: "Sanjay Kumar", deviceId: "csa-001" }, { rollNo: "C02", name: "Geeta Yadav", deviceId: "csa-002" }, ],
+                "CS-B": [ { rollNo: "D01", name: "Neha Agarwal", deviceId: "csb-001" }, { rollNo: "D02", name: "Arun Khanna", deviceId: "csb-002" }, ]
             };
             status.textContent = "Seeding database...";
             seedButton.disabled = true;
@@ -222,10 +221,10 @@
                     await setDoc(doc(db, "rosters", division), { students: sampleData[division] });
                 }
                 status.textContent = "Database seeded successfully!";
-                seedContainer.style.display = 'none'; // Hide after success
+                seedContainer.style.display = 'none';
             } catch (error) {
                 console.error("Error seeding database: ", error);
-                status.textContent = "Error seeding database.";
+                status.textContent = "Error seeding database. Check console.";
                 seedButton.disabled = false;
             }
         });
@@ -237,7 +236,7 @@
             classDivisionSelector.disabled = true;
             scanButton.classList.add('pulsing');
             scanText.textContent = 'Scanning...';
-            status.textContent = 'Searching for student devices...';
+            status.textContent = 'Simulating scan for student devices...';
             
             studentList.innerHTML = '';
             roster.forEach(student => {
